@@ -13,39 +13,70 @@
 # limitations under the License.
 
 import streamlit as st
-from streamlit.logger import get_logger
+import pandas as pd
+import numpy as np
+import altair as alt
+import pydeck as pdk
 
-LOGGER = get_logger(__name__)
+st.set_page_config(
+    page_title="Book Recommendation",
+    page_icon="📚",
+)
 
+# Load the dataset
+file_path = 'hello.csv'
+try:
+    df = pd.read_csv(file_path)
+except FileNotFoundError:
+    st.error(f"File not found: {file_path}")
+    st.stop()
 
-def run():
-    st.set_page_config(
-        page_title="Hello",
-        page_icon="👋",
-    )
+# Preprocess the data
+df['Title'] = df['Title'].fillna('')
+df['Genre'] = df['Genre'].fillna('')
 
-    st.write("# Welcome to Streamlit! 👋")
+# Create a TF-IDF-like vectorizer
+corpus = df['Title'] + ' ' + df['Genre']
+unique_words = set(' '.join(corpus).split())
+word_to_index = {word: i for i, word in enumerate(unique_words)}
 
-    st.sidebar.success("Select a demo above.")
+def vectorize(text):
+    vector = np.zeros(len(unique_words))
+    for word in text.split():
+        if word in word_to_index:
+            vector[word_to_index[word]] += 1
+    return vector / np.linalg.norm(vector)
 
-    st.markdown(
-        """
-        Streamlit is an open-source app framework built specifically for
-        Machine Learning and Data Science projects.
-        **👈 Select a demo from the sidebar** to see some examples
-        of what Streamlit can do!
-        ### Want to learn more?
-        - Check out [streamlit.io](https://streamlit.io)
-        - Jump into our [documentation](https://docs.streamlit.io)
-        - Ask a question in our [community
-          forums](https://discuss.streamlit.io)
-        ### See more complex demos
-        - Use a neural net to [analyze the Udacity Self-driving Car Image
-          Dataset](https://github.com/streamlit/demo-self-driving)
-        - Explore a [New York City rideshare dataset](https://github.com/streamlit/demo-uber-nyc-pickups)
-    """
-    )
+# Create vectors for each book
+book_vectors = np.array([vectorize(text) for text in corpus])
 
+# Streamlit app
+st.title('Book Recommendation App')
 
-if __name__ == "__main__":
-    run()
+# User input
+user_input = st.text_input('Enter a book title or genre:', '')
+
+# Submit button
+if st.button('Submit'):
+    # Recommend five books based on user input with randomness and preference to higher-ranked items
+    if user_input:
+        # Transform the user input into a vector
+        input_vector = vectorize(user_input)
+
+        # Compute the cosine similarity between the user input and all books
+        sim_scores = np.dot(book_vectors, input_vector)
+
+        # Select the top 25 recommendations
+        top_indices = sim_scores.argsort()[::-1][:25]
+
+        # Introduce randomness with a preference for higher-ranked items
+        weights = np.arange(1, 26)  # Higher weights for higher-ranked items
+        sampled_indices = np.random.choice(top_indices, 5, replace=False, p=weights / weights.sum())
+
+        # Display the recommended books
+        if len(sampled_indices) > 0:
+            st.subheader('Recommended Books:')
+            for i, idx in enumerate(sampled_indices):
+                st.write(f"{i + 1}. {df.iloc[idx]['Title']} by {df.iloc[idx]['Author']} ({df.iloc[idx]['Genre']})")
+        else:
+            st.write("No recommendations found.")
