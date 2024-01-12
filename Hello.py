@@ -18,18 +18,20 @@ import numpy as np
 import altair as alt
 import pydeck as pdk
 
-#page config
 st.set_page_config(
     page_title="Book Recommendation",
     page_icon="📚",
 )
-st.title('Book Recommendation App')
 
-#loading data
-df = pd.read_csv(hello.csv)
+file_path = 'hello.csv'
+try:
+    df = pd.read_csv(file_path)
+except FileNotFoundError:
+    st.error(f"File not found: {file_path}")
+    st.stop()
+
 df['Title'] = df['Title'].fillna('')
 df['Genre'] = df['Genre'].fillna('')
-
 
 corpus = df['Title'] + ' ' + df['Genre']
 unique_words = set(' '.join(corpus).split())
@@ -44,6 +46,7 @@ def vectorize(text):
 
 book_vectors = np.array([vectorize(text) for text in corpus])
 
+st.title('Book Recommendation App')
 
 user_input = st.text_input('Enter a book title or genre:', '')
 
@@ -51,15 +54,15 @@ if st.button('Submit'):
     if user_input:
         input_vector = vectorize(user_input)
 
-        # similarity checking
+        # cehck similairty
         sim_scores = np.dot(book_vectors, input_vector)
 
-        # selecting random 5 from top 25 
+        #randonly selct 5 from top 25
         top_indices = sim_scores.argsort()[::-1][:25]
         weights = np.arange(1, 26)  
         sampled_indices = np.random.choice(top_indices, 5, replace=False, p=weights / weights.sum())
 
-        # Display 
+        # Display
         if len(sampled_indices) > 0:
             st.subheader('Recommended Books:')
             for i, idx in enumerate(sampled_indices):
