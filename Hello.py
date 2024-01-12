@@ -19,11 +19,11 @@ import altair as alt
 import pydeck as pdk
 
 #page config
-st.title('Book Recommendation App')
 st.set_page_config(
     page_title="Book Recommendation",
     page_icon="📚",
 )
+st.title('Book Recommendation App')
 
 #loading data
 df = pd.read_csv(hello.csv)
