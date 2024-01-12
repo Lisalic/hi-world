@@ -35,9 +35,20 @@ except FileNotFoundError:
 df['Title'] = df['Title'].fillna('')
 df['Genre'] = df['Genre'].fillna('')
 
-# Create a TF-IDF vectorizer
-tfidf_vectorizer = TfidfVectorizer(stop_words='english')
-tfidf_matrix = tfidf_vectorizer.fit_transform(df['Title'] + ' ' + df['Genre'])
+# Create a TF-IDF-like vectorizer
+corpus = df['Title'] + ' ' + df['Genre']
+unique_words = set(' '.join(corpus).split())
+word_to_index = {word: i for i, word in enumerate(unique_words)}
+
+def vectorize(text):
+    vector = np.zeros(len(unique_words))
+    for word in text.split():
+        if word in word_to_index:
+            vector[word_to_index[word]] += 1
+    return vector / np.linalg.norm(vector)
+
+# Create vectors for each book
+book_vectors = np.array([vectorize(text) for text in corpus])
 
 # Streamlit app
 st.title('Book Recommendation App')
@@ -49,11 +60,11 @@ user_input = st.text_input('Enter a book title or genre:', '')
 if st.button('Submit'):
     # Recommend five books based on user input with randomness and preference to higher-ranked items
     if user_input:
-        # Transform the user input using the TF-IDF vectorizer
-        input_vector = tfidf_vectorizer.transform([user_input])
+        # Transform the user input into a vector
+        input_vector = vectorize(user_input)
 
         # Compute the cosine similarity between the user input and all books
-        sim_scores = linear_kernel(input_vector, tfidf_matrix).flatten()
+        sim_scores = np.dot(book_vectors, input_vector)
 
         # Select the top 25 recommendations
         top_indices = sim_scores.argsort()[::-1][:25]
